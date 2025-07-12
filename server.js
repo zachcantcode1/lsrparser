@@ -332,7 +332,7 @@ app.get('/ticker', (req, res) => {
         }
         .ticker-content {
             white-space: nowrap;
-            animation: scroll 90s linear infinite;
+            animation: scroll 60s linear infinite;
             padding-left: 100%;
             display: flex;
             align-items: center;
