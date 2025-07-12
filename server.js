@@ -257,7 +257,15 @@ app.get('/', (req, res) => {
 <body>
     <div class="container">
         <div class="data-content ${latestData.startsWith('Error:') ? 'error' : ''}">${latestData.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
-        <div class="last-updated">Last updated: ${lastUpdated.toLocaleString()}</div>
+        <div class="last-updated">Last updated: ${lastUpdated.toLocaleString('en-US', { 
+            timeZone: 'America/Chicago',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        })}</div>
     </div>
 </body>
 </html>`;
@@ -385,9 +393,12 @@ app.get('/compact', (req, res) => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weather Compact</title>
     <style>
+        html {
+            background: transparent !important;
+        }
         body {
             font-family: 'Arial', sans-serif;
-            background: transparent;
+            background: transparent !important;
             color: #ffffff;
             margin: 0;
             padding: 20px;
@@ -395,14 +406,25 @@ app.get('/compact', (req, res) => {
             line-height: 1.4;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
             border-radius: 10px;
+            /* OBS text clarity optimizations */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            font-smooth: always;
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+            will-change: transform;
         }
         .compact-container {
             max-width: 600px;
-            background: transparent;
+            background: transparent !important;
             border: 2px solid rgba(30,144,255,0.6);
             border-radius: 10px;
             padding: 15px;
-            backdrop-filter: blur(5px);
+            /* Removed backdrop-filter for OBS compatibility */
+            /* Additional text clarity for container */
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
         }
         .header {
             font-size: 24px;
@@ -410,6 +432,9 @@ app.get('/compact', (req, res) => {
             margin-bottom: 10px;
             text-align: center;
             color: #87CEEB;
+            /* Enhanced text clarity for headers */
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
         }
         .summary {
             font-size: 18px;
@@ -442,7 +467,12 @@ app.get('/compact', (req, res) => {
 <body>
     <div class="compact-container">
         ${generateCompactContent(latestData)}
-        <div class="last-updated">Updated: ${lastUpdated.toLocaleTimeString()}</div>
+        <div class="last-updated">Updated: ${lastUpdated.toLocaleTimeString('en-US', { 
+            timeZone: 'America/Chicago',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        })}</div>
     </div>
 </body>
 </html>`;
