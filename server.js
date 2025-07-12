@@ -32,7 +32,7 @@ function generateTickerContent(data) {
     }
     
     if (data.includes('No recent storm reports')) {
-        return `<div class="ticker-item"><span class="ticker-label">🌤️ WEATHER</span>No storm reports in the last hour - All quiet!</div>`;
+        return `<div class="ticker-item"><span class="ticker-label">🌤️ WEATHER</span>No storm reports in the last 2 hours - All quiet!</div>`;
     }
     
     const lines = data.split('\n');
@@ -111,7 +111,7 @@ function generateTickerContent(data) {
         const totalLine = lines.find(line => line.includes('Total Reports:'));
         if (totalLine) {
             const total = totalLine.match(/\d+/)?.[0] || '0';
-            tickerItems.push(`<div class="ticker-item"><span class="ticker-label">🌪️ WEATHER</span>${total} storm reports in the last hour</div>`);
+            tickerItems.push(`<div class="ticker-item"><span class="ticker-label">🌪️ WEATHER</span>${total} storm reports in the last 2 hours</div>`);
         }
     }
     
@@ -138,7 +138,7 @@ function generateCompactContent(data) {
     const totalLine = lines.find(line => line.includes('Total Reports:'));
     if (totalLine) {
         const total = totalLine.match(/\d+/)[0];
-        content += `<div class="summary">${total} reports in the last hour</div>`;
+        content += `<div class="summary">${total} reports in the last 2 hours</div>`;
     }
     
     // State breakdown
