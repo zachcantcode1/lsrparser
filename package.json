@@ -1,31 +1,14 @@
 {
   "name": "lsrparser",
   "version": "1.0.0",
-  "description": "JSON Parser for OBS Studio - Fetches JSON data and serves formatted text for browser sources",
-  "main": "server.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "pm2": "pm2 start server.js --name lsrparser",
-    "pm2:stop": "pm2 stop lsrparser",
-    "pm2:restart": "pm2 restart lsrparser",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [
-    "obs",
-    "json",
-    "parser",
-    "streaming",
-    "browser-source",
-    "weather",
-    "storm-reports"
-  ],
+  "keywords": [],
   "author": "",
   "license": "ISC",
-  "engines": {
-    "node": ">=14.0.0",
-    "npm": ">=6.0.0"
-  },
+  "description": "",
   "dependencies": {
     "axios": "^1.10.0",
     "cors": "^2.8.5",

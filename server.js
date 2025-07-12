@@ -285,6 +285,9 @@ app.get('/ticker', (req, res) => {
             font-size: 28px;
             font-weight: bold;
             text-shadow: 3px 3px 6px rgba(0,0,0,0.9);
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            perspective: 1000px;
         }
         .ticker-container {
             width: 100%;
@@ -296,6 +299,28 @@ app.get('/ticker', (req, res) => {
             align-items: center;
             position: relative;
             overflow: hidden;
+            transform: translateZ(0);
+            will-change: contents;
+        }
+        .ticker-static-label {
+            background: rgba(220,20,60,0.9);
+            color: #ffffff;
+            padding: 0 20px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-right: 3px solid rgba(255,255,255,0.8);
+            flex-shrink: 0;
+            z-index: 10;
+        }
+        .ticker-scroll-area {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
         }
         .ticker-content {
             white-space: nowrap;
@@ -303,11 +328,15 @@ app.get('/ticker', (req, res) => {
             padding-left: 100%;
             display: flex;
             align-items: center;
+            will-change: transform;
+            transform: translateZ(0);
         }
         .ticker-item {
             margin-right: 80px;
             display: inline-flex;
             align-items: center;
+            backface-visibility: hidden;
+            transform: translateZ(0);
         }
         .ticker-label {
             background: rgba(30,144,255,0.8);
@@ -317,10 +346,11 @@ app.get('/ticker', (req, res) => {
             font-size: 24px;
             font-weight: bold;
             border: 1px solid rgba(255,255,255,0.5);
+            transform: translateZ(0);
         }
         @keyframes scroll {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-100%); }
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-100%, 0, 0); }
         }
         .breaking {
             color: #ffffff;
