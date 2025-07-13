@@ -190,24 +190,34 @@ function generateCompactContent(data) {
     const stateStart = lines.findIndex(line => line.includes('REPORTS BY STATE:'));
     if (stateStart > -1) {
         content += '<div class="reports">';
+        
+        // First, collect state information
+        const states = [];
         for (let i = stateStart + 1; i < lines.length; i++) {
             const line = lines[i].trim();
-            if (line === '' || line.includes('🌧️') || line.includes('❄️') || line.includes('🌪️')) break;
+            if (line === '' || line.includes('🌧️') || line.includes('❄️') || line.includes('🌪️') || line.includes('🌩️')) {
+                break;
+            }
             if (line.includes(':')) {
+                const stateName = line.split(':')[0].trim();
+                states.push(stateName);
                 content += `<div class="report-line">📍 ${line.replace(/^\s+/, '')}</div>`;
             }
         }
         
-        // Top reports
-        const reportLines = lines.filter(line => 
-            line.includes('inch') || line.includes('Inch') && line.trim().length > 10
-        );
-        
-        reportLines.slice(0, 3).forEach(line => {
-            const cleanLine = line.trim().replace(/^\s+/, '');
-            if (cleanLine.length > 10) {
-                content += `<div class="report-line">🌧️ ${cleanLine}</div>`;
+        // Then, collect and display weather types for each state
+        const weatherTypes = [];
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            // Look for weather type headers like "🌩️ FLASH FLOOD (5):"
+            if ((line.includes('🌩️') || line.includes('🌧️') || line.includes('❄️') || line.includes('🌪️') || line.includes('💨') || line.includes('🧊')) && line.includes('(') && line.includes('):')) {
+                weatherTypes.push(line.replace(':', ''));
             }
+        }
+        
+        // Display weather types indented under states (assuming single state for now)
+        weatherTypes.forEach(weatherType => {
+            content += `<div class="report-line weather-type">    ${weatherType}</div>`;
         });
         
         content += '</div>';
@@ -473,7 +483,6 @@ app.get('/compact', (req, res) => {
         .compact-container {
             max-width: 600px;
             background: transparent !important;
-            border: 2px solid rgba(30,144,255,0.6);
             border-radius: 10px;
             padding: 15px;
             /* Removed backdrop-filter for OBS compatibility */
@@ -503,6 +512,12 @@ app.get('/compact', (req, res) => {
             margin: 8px 0;
             padding: 5px 0;
             border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        .weather-type {
+            font-size: 14px;
+            margin-left: 20px;
+            color: #cccccc;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         .last-updated {
             font-size: 14px;
