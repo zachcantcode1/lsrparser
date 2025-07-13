@@ -550,22 +550,380 @@ app.get('/compact', (req, res) => {
     res.send(html);
 });
 
-// Endpoint to update configuration
-app.get('/config', (req, res) => {
-    const { url } = req.query;
+// Helper function to generate dashboard content
+function generateDashboardContent(data) {
+    if (data.startsWith('Error:')) {
+        return `
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">⚠️</div>
+                    <div class="stat-label">Error Loading Data</div>
+                </div>
+            </div>
+            <div class="reports-section">
+                <div class="section-title">Error Details</div>
+                <div class="no-reports">${data}</div>
+            </div>
+        `;
+    }
     
-    if (url) {
-        serverConfig.apiUrl = url;
-        console.log(`Updated API URL to: ${url}`);
-        fetchAndParseData(); // Fetch immediately with new URL
-        res.json({ message: 'URL updated successfully', newUrl: url });
+    if (data.includes('No recent storm reports')) {
+        return `
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">0</div>
+                    <div class="stat-label">Total Reports</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">🌤️</div>
+                    <div class="stat-label">All Quiet</div>
+                </div>
+            </div>
+            <div class="reports-section">
+                <div class="section-title">Storm Reports</div>
+                <div class="no-reports">No storm reports in the last 2 hours. Weather conditions are calm.</div>
+            </div>
+        `;
+    }
+    
+    const lines = data.split('\n');
+    let content = '';
+    
+    // Extract statistics
+    const totalReportsLine = lines.find(line => line.includes('Total Reports:'));
+    const totalReports = totalReportsLine ? totalReportsLine.match(/\d+/)?.[0] || '0' : '0';
+    
+    // Extract state information
+    const stateStart = lines.findIndex(line => line.includes('REPORTS BY STATE:'));
+    const states = [];
+    if (stateStart > -1) {
+        for (let i = stateStart + 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line === '' || line.includes('🌧️') || line.includes('❄️') || line.includes('🌪️') || line.includes('🌩️')) break;
+            if (line.includes(':')) {
+                const parts = line.split(':');
+                const state = parts[0].trim();
+                const count = parts[1].trim().replace(' reports', '').replace(' report', '');
+                states.push({ state, count });
+            }
+        }
+    }
+    
+    // Extract weather types and their reports
+    const weatherSections = [];
+    let currentSection = null;
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        // Check for weather type headers
+        if ((line.includes('🌩️') || line.includes('🌧️') || line.includes('❄️') || line.includes('🌪️') || line.includes('💨') || line.includes('🧊')) && line.includes('(') && line.includes('):')) {
+            if (currentSection) {
+                weatherSections.push(currentSection);
+            }
+            currentSection = {
+                type: line.replace(':', ''),
+                reports: []
+            };
+        } else if (currentSection && line.length > 0 && 
+                   !line.includes('REPORTS BY STATE') && 
+                   !line.includes('Total Reports') && 
+                   !line.includes('🌪️ STORM REPORTS') &&
+                   !line.startsWith('📍') &&
+                   line.includes(',') && line.includes('(')) {
+            // This is a report line
+            currentSection.reports.push(line);
+        }
+    }
+    
+    if (currentSection) {
+        weatherSections.push(currentSection);
+    }
+    
+    // Generate stats grid
+    content += `
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">${totalReports}</div>
+                <div class="stat-label">Total Reports</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${states.length}</div>
+                <div class="stat-label">States Affected</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${weatherSections.length}</div>
+                <div class="stat-label">Weather Types</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">2h</div>
+                <div class="stat-label">Time Window</div>
+            </div>
+        </div>
+    `;
+    
+    // Generate detailed reports section
+    content += '<div class="reports-section">';
+    content += '<div class="section-title">Detailed Storm Reports</div>';
+    
+    if (weatherSections.length === 0) {
+        content += '<div class="no-reports">No detailed reports available.</div>';
     } else {
-        res.json({ 
-            message: 'Current configuration',
-            apiUrl: serverConfig.apiUrl,
-            refreshInterval: serverConfig.refreshInterval
+        weatherSections.forEach(section => {
+            content += `<div class="weather-type-section">`;
+            content += `<div class="weather-type-header">${section.type}</div>`;
+            
+            if (section.reports.length === 0) {
+                content += '<div class="no-reports">No detailed reports for this type.</div>';
+            } else {
+                section.reports.forEach(report => {
+                    content += formatReportForDashboard(report);
+                });
+            }
+            
+            content += '</div>';
         });
     }
+    
+    content += '</div>';
+    
+    return content;
+}
+
+// Helper function to format individual reports for dashboard
+function formatReportForDashboard(report) {
+    // Parse the report line
+    let location = '';
+    let time = '';
+    let details = '';
+    let source = '';
+    
+    // Extract source if available
+    const sourceMatch = report.match(/\[([^\]]+)\]$/);
+    if (sourceMatch) {
+        source = sourceMatch[1];
+        report = report.replace(/\s*\[([^\]]+)\]$/, '');
+    }
+    
+    // Extract time
+    const timeMatch = report.match(/\(([^)]+)\)/);
+    if (timeMatch) {
+        time = timeMatch[1];
+        report = report.replace(/\s*\([^)]+\)/, '');
+    }
+    
+    // Check for remark format (location - details)
+    if (report.includes(' - ')) {
+        const dashIndex = report.indexOf(' - ');
+        location = report.substring(0, dashIndex).trim();
+        details = report.substring(dashIndex + 3).trim();
+    } else {
+        // Try to split on the first location-like pattern
+        const parts = report.split(',');
+        if (parts.length >= 3) {
+            location = parts.slice(0, 3).join(',').trim();
+            details = parts.slice(3).join(',').trim();
+        } else {
+            location = report.trim();
+            details = '';
+        }
+    }
+    
+    return `
+        <div class="report-item">
+            <div class="report-location">${location}</div>
+            <div class="report-time">📅 ${time}</div>
+            ${details ? `<div class="report-details">${details}</div>` : ''}
+            ${source ? `<div class="report-source">Source: ${source}</div>` : ''}
+        </div>
+    `;
+}
+
+// Dashboard endpoint for comprehensive storm reports view
+app.get('/dashboard', (req, res) => {
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storm Reports Dashboard</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .dashboard-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        .dashboard-title {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .dashboard-subtitle {
+            font-size: 20px;
+            margin: 10px 0 0 0;
+            color: #b8d4f0;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: rgba(255,255,255,0.15);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #87CEEB;
+        }
+        .stat-label {
+            font-size: 16px;
+            color: #b8d4f0;
+            margin-top: 5px;
+        }
+        .reports-section {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+        }
+        .section-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #87CEEB;
+            border-bottom: 2px solid rgba(135,206,235,0.3);
+            padding-bottom: 10px;
+        }
+        .weather-type-section {
+            margin-bottom: 30px;
+        }
+        .weather-type-header {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            background: rgba(30,144,255,0.2);
+            border-radius: 8px;
+            border-left: 4px solid #1E90FF;
+        }
+        .report-item {
+            background: rgba(255,255,255,0.05);
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid #87CEEB;
+            transition: background 0.3s ease;
+        }
+        .report-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .report-location {
+            font-size: 18px;
+            font-weight: bold;
+            color: #87CEEB;
+            margin-bottom: 5px;
+        }
+        .report-time {
+            font-size: 14px;
+            color: #b8d4f0;
+            margin-bottom: 8px;
+        }
+        .report-details {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        .report-source {
+            font-size: 14px;
+            color: #cccccc;
+            font-style: italic;
+        }
+        .no-reports {
+            text-align: center;
+            font-size: 18px;
+            color: #b8d4f0;
+            padding: 40px;
+        }
+        .last-updated {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #b8d4f0;
+            font-style: italic;
+        }
+        .refresh-btn {
+            background: #1E90FF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .refresh-btn:hover {
+            background: #0066cc;
+        }
+    </style>
+    <script>
+        // Auto-refresh every 60 seconds
+        setInterval(() => {
+            location.reload();
+        }, 60000);
+        
+        function refreshNow() {
+            location.reload();
+        }
+    </script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <div class="dashboard-title">🌪️ Storm Reports Dashboard</div>
+            <div class="dashboard-subtitle">Local Storm Reports - Last 2 Hours</div>
+            <button class="refresh-btn" onclick="refreshNow()">🔄 Refresh Now</button>
+        </div>
+        
+        ${generateDashboardContent(latestData)}
+        
+        <div class="last-updated">Last updated: ${lastUpdated.toLocaleString('en-US', { 
+            timeZone: 'America/Chicago',
+            year: 'numeric',
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        })}</div>
+    </div>
+</body>
+</html>`;
+    
+    res.send(html);
 });
 
 // Health check endpoint
@@ -583,6 +941,7 @@ app.listen(PORT, () => {
     console.log(`📺 Use this URL in OBS Studio: http://localhost:${PORT}`);
     console.log(`⚙️  Change API URL: http://localhost:${PORT}/config?url=YOUR_JSON_URL`);
     console.log(`📊 API endpoint: http://localhost:${PORT}/api/data`);
+    console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard`);
     
     // Fetch initial data
     fetchAndParseData();
