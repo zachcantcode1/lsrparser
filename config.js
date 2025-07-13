@@ -86,9 +86,16 @@ const config = {
                 .forEach(([type, reports]) => {
                     displayText += `${getWeatherEmoji(type)} ${type} (${reports.length}):\n`;
                     
-                    // Show all reports of this type, sorted by magnitude
+                    // Show all reports of this type, sorted appropriately
                     reports
-                        .sort((a, b) => parseFloat(b.magnitude) - parseFloat(a.magnitude))
+                        .sort((a, b) => {
+                            // For reports with magnitude, sort by magnitude (descending)
+                            if (a.magnitude && a.magnitude.trim() !== '' && b.magnitude && b.magnitude.trim() !== '') {
+                                return parseFloat(b.magnitude) - parseFloat(a.magnitude);
+                            }
+                            // For reports without magnitude (like Flash Floods), sort by time (newest first)
+                            return new Date(b.time) - new Date(a.time);
+                        })
                         .forEach(report => {
                             const time = new Date(report.time).toLocaleTimeString('en-US', {
                                 hour: '2-digit',
@@ -103,7 +110,25 @@ const config = {
                             }
                             location += `, ${report.state}`;
                             
-                            displayText += `   ${report.magnitude}${report.unit} - ${location} (${time})`;
+                            // Handle different report types
+                            if (type === 'FLASH FLOOD' && report.remark && 
+                                report.remark.length < 300 && // Increased limit for Flash Flood remarks
+                                !report.remark.includes('24-hour') &&
+                                report.remark.toLowerCase() !== 'null') {
+                                // For Flash Floods, show the remark as the main content
+                                displayText += `   ${location} (${time}) - ${report.remark}`;
+                            } else {
+                                // For other weather types, use magnitude if available
+                                let measurementText = '';
+                                if (report.magnitude && report.magnitude !== 'null' && report.magnitude.trim() !== '') {
+                                    measurementText = report.magnitude;
+                                    if (report.unit && report.unit !== 'null') {
+                                        measurementText += report.unit;
+                                    }
+                                    measurementText += ' - ';
+                                }
+                                displayText += `   ${measurementText}${location} (${time})`;
+                            }
                             
                             // Add source if notable
                             if (report.source && report.source !== 'Mesonet' && report.source !== 'ASOS') {
@@ -112,9 +137,9 @@ const config = {
                             
                             displayText += '\n';
                             
-                            // Add remark if available and meaningful
-                            if (report.remark && 
-                                report.remark.length < 80 && 
+                            // Add remark for non-Flash Flood reports if available and meaningful
+                            if (type !== 'FLASH FLOOD' && report.remark && 
+                                report.remark.length < 200 &&
                                 !report.remark.includes('24-hour') &&
                                 report.remark.toLowerCase() !== 'null') {
                                 displayText += `     ${report.remark}\n`;

@@ -38,71 +38,116 @@ function generateTickerContent(data) {
     const lines = data.split('\n');
     let tickerItems = [];
     
-    // Extract actual report lines (those with measurements and locations)
-    const reportLines = lines.filter(line => {
-        const trimmed = line.trim();
-        return trimmed.length > 0 && 
-               (trimmed.includes('inch') || trimmed.includes('Inch') || 
-                trimmed.includes('mph') || trimmed.includes('MPH') ||
-                trimmed.includes('°F') || trimmed.includes('degrees') ||
-                trimmed.includes('tornado') || trimmed.includes('TORNADO') ||
-                trimmed.includes('hail') || trimmed.includes('HAIL')) &&
-               trimmed.includes(' - ') && // Must have location separator
-               !trimmed.includes('REPORTS BY STATE') &&
-               !trimmed.includes('Total Reports');
-    });
+    // Process the data to extract weather type and individual reports
+    let currentWeatherType = '';
+    let currentEmoji = '🌧️';
     
-    // Process each report line to create ticker items
-    reportLines.forEach(line => {
-        const cleanLine = line.trim().replace(/^\s+/, '');
-        if (cleanLine.length > 10) {
-            // Parse the report to extract components
-            const parts = cleanLine.split(' - ');
-            if (parts.length >= 2) {
-                const measurement = parts[0]; // e.g., "1.6Inch"
-                const locationAndTime = parts[1]; // e.g., "5 NW Industry, IL (09:29 AM)"
-                
-                // Extract location (everything before the parentheses)
-                const locationMatch = locationAndTime.match(/^(.+?)\s*\(/);
-                const location = locationMatch ? locationMatch[1] : locationAndTime;
-                
-                // Extract time
-                const timeMatch = locationAndTime.match(/\(([^)]+)\)/);
-                const time = timeMatch ? timeMatch[1] : '';
-                
-                // Determine weather type and severity
-                let weatherType = '🌧️';
-                let severity = '';
-                let isSignificant = false;
-                
-                if (measurement.toLowerCase().includes('tornado')) {
-                    weatherType = '🌪️';
-                    severity = 'TORNADO';
-                    isSignificant = true;
-                } else if (measurement.toLowerCase().includes('hail')) {
-                    weatherType = '🧊';
-                    severity = 'HAIL';
-                    const size = parseFloat(measurement);
-                    isSignificant = size >= 1.0;
-                } else if (measurement.toLowerCase().includes('mph')) {
-                    weatherType = '💨';
-                    severity = 'WIND';
-                    const speed = parseFloat(measurement);
-                    isSignificant = speed >= 60;
-                } else if (measurement.toLowerCase().includes('inch')) {
-                    weatherType = '🌧️';
-                    severity = 'RAIN';
-                    const amount = parseFloat(measurement);
-                    isSignificant = amount >= 1.0;
-                }
-                
-                // Format the ticker item
-                const className = isSignificant ? 'ticker-item breaking' : 'ticker-item';
-                const label = `${weatherType} ${severity}`;
-                const timeStr = time ? ` at ${time}` : '';
-                
-                tickerItems.push(`<div class="${className}"><span class="ticker-label">${label}</span>${measurement} reported in ${location}${timeStr}</div>`);
+    lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        
+        // Check if this is a weather type header (like "🌩️ FLASH FLOOD (2):")
+        if (trimmed.includes('FLASH FLOOD') || trimmed.includes('RAIN') || trimmed.includes('SNOW') || 
+            trimmed.includes('HAIL') || trimmed.includes('TORNADO') || trimmed.includes('WIND')) {
+            
+            if (trimmed.includes('FLASH FLOOD')) {
+                currentEmoji = '🌩️';
+                currentWeatherType = 'FLASH FLOOD';
+            } else if (trimmed.includes('TORNADO')) {
+                currentEmoji = '🌪️';
+                currentWeatherType = 'TORNADO';
+            } else if (trimmed.includes('HAIL')) {
+                currentEmoji = '🧊';
+                currentWeatherType = 'HAIL';
+            } else if (trimmed.includes('RAIN')) {
+                currentEmoji = '🌧️';
+                currentWeatherType = 'RAIN';
+            } else if (trimmed.includes('WIND')) {
+                currentEmoji = '💨';
+                currentWeatherType = 'WIND';
+            } else if (trimmed.includes('SNOW')) {
+                currentEmoji = '❄️';
+                currentWeatherType = 'SNOW';
             }
+            
+            return;
+        }
+        
+        // Check if this is an individual report line (starts with spaces and has location + time)
+        if (trimmed.length > 0 && 
+            trimmed.includes(', ') && 
+            trimmed.includes('(') && 
+            trimmed.includes(':') &&
+            !trimmed.includes('REPORTS BY STATE') &&
+            !trimmed.includes('Total Reports') &&
+            !trimmed.includes('🌪️ STORM REPORTS') &&
+            !trimmed.startsWith('📍')) {
+            
+            // For Flash Flood reports, look for the remark text after " - "
+            let location = '';
+            let time = '';
+            let remarkText = '';
+            let source = '';
+            
+            if (currentWeatherType === 'FLASH FLOOD' && trimmed.includes(' - ')) {
+                // Parse Flash Flood format: "City, County, State (time) - remark [source]"
+                const dashIndex = trimmed.indexOf(' - ');
+                const locationAndTime = trimmed.substring(0, dashIndex);
+                remarkText = trimmed.substring(dashIndex + 3); // Skip " - "
+                
+                // Extract time from locationAndTime
+                const timeMatch = locationAndTime.match(/\(([^)]+)\)/);
+                time = timeMatch ? timeMatch[1] : '';
+                
+                // Extract location (everything before the time parentheses)
+                location = locationAndTime.replace(/\s*\([^)]+\)/, '').trim();
+                
+                // Extract source from remark if available
+                const sourceMatch = remarkText.match(/\[([^\]]+)\]$/);
+                if (sourceMatch) {
+                    source = sourceMatch[1];
+                    remarkText = remarkText.replace(/\s*\[([^\]]+)\]$/, ''); // Remove source from remark
+                }
+            } else {
+                // Parse regular format: "measurement - location (time) [source]"
+                const locationMatch = trimmed.match(/^(.+?)\s*\(/);
+                location = locationMatch ? locationMatch[1] : trimmed;
+                
+                const timeMatch = trimmed.match(/\(([^)]+)\)/);
+                time = timeMatch ? timeMatch[1] : '';
+                
+                const sourceMatch = trimmed.match(/\[([^\]]+)\]/);
+                source = sourceMatch ? sourceMatch[1] : '';
+            }
+            
+            // Determine if this is significant
+            let isSignificant = false;
+            if (currentWeatherType.includes('TORNADO') || 
+                currentWeatherType.includes('FLASH FLOOD') ||
+                currentWeatherType.includes('FLOOD')) {
+                isSignificant = true;
+            }
+            
+            // Format the ticker item
+            const className = isSignificant ? 'ticker-item breaking' : 'ticker-item';
+            const label = `${currentEmoji} ${currentWeatherType}`;
+            const timeStr = time ? ` at ${time.replace(' AM', 'AM').replace(' PM', 'PM')}` : '';
+            const sourceStr = source ? ` [${source}]` : '';
+            
+            let tickerItem = '';
+            if (currentWeatherType === 'FLASH FLOOD') {
+                if (remarkText) {
+                    // For Flash Floods with remarks, show location, then remark with time and source
+                    tickerItem = `<div class="${className}"><span class="ticker-label">${label}</span>${location}: ${remarkText}${timeStr}${sourceStr}</div>`;
+                } else {
+                    // For Flash Floods without remarks, show standard format
+                    tickerItem = `<div class="${className}"><span class="ticker-label">${label}</span>Reported in ${location}${timeStr}${sourceStr}</div>`;
+                }
+            } else {
+                // For other weather types, use standard format
+                tickerItem = `<div class="${className}"><span class="ticker-label">${label}</span>Reported in ${location}${timeStr}${sourceStr}</div>`;
+            }
+            
+            tickerItems.push(tickerItem);
         }
     });
     
@@ -207,6 +252,16 @@ app.get('/api/data', (req, res) => {
         lastUpdated: lastUpdated.toISOString(),
         status: 'ok'
     });
+});
+
+// Raw API data endpoint for debugging
+app.get('/api/raw', async (req, res) => {
+    try {
+        const response = await axios.get(serverConfig.apiUrl, serverConfig.requestOptions);
+        res.json(response.data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Main endpoint for OBS Studio browser source

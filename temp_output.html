@@ -1,0 +1,59 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Data Display</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: transparent;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            font-size: 24px;
+            line-height: 1.6;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .data-content {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .last-updated {
+            font-size: 16px;
+            color: #cccccc;
+            margin-top: 20px;
+            font-style: italic;
+        }
+        .error {
+            color: #ff6b6b;
+        }
+    </style>
+    <script>
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            location.reload();
+        }, 30000);
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="data-content ">🌪️ STORM REPORTS - Last 2 Hours
+Total Reports: 3
+
+📍 REPORTS BY STATE:
+   TX: 3 reports
+
+🌩️ FLASH FLOOD (3):
+   5 SSW Hunt, Kerr County, TX (09:02 AM) - EM reported water over the road at Cypress Creek low water crossing. No depth reported. [Emergency Mngr]
+   Junction, Kimble County, TX (09:20 AM) [Emergency Mngr]
+   Roosevelt, Kimble County, TX (09:20 AM) - The Kimble County Emergency Manager reported that streets are flooded in the town of Roosevelt. [Emergency Mngr]</div>
+        <div class="last-updated">Last updated: Jul 13, 2025, 10:48:36 AM</div>
+    </div>
+</body>
+</html>
